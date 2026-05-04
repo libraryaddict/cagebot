@@ -1,6 +1,4 @@
-import axios from "axios";
-import { select } from "xpath";
-import { DOMParser as dom } from "xmldom";
+import axios from "axios"; 
 import { Agent as httpsAgent } from "https";
 import { Agent as httpAgent } from "http";
 import {
@@ -22,15 +20,7 @@ import { splitMessage, toJson } from "./Utils";
 axios.defaults.timeout = 30000;
 axios.defaults.httpAgent = new httpAgent({ keepAlive: true });
 axios.defaults.httpsAgent = new httpsAgent({ keepAlive: true });
-
-const parser = new dom({
-  errorHandler: {
-    warning: () => {},
-    error: () => {},
-    fatalError: console.log,
-  },
-});
-
+ 
 export class KoLClient {
   private _loginParameters;
   private _credentials?: KOLCredentials;
@@ -155,9 +145,9 @@ export class KoLClient {
         maxRedirects: 0,
         validateStatus: (status) => status === 302,
       });
-      const sessionCookies = loginResponse.headers["set-cookie"]
+      const sessionCookies = loginResponse.headers?["set-cookie"]
         .map((cookie: string) => cookie.split(";")[0])
-        .join("; ");
+        .join("; ") : "";
       const apiResponse = await axios("https://www.kingdomofloathing.com/api.php", {
         withCredentials: true,
         headers: {
@@ -456,23 +446,26 @@ export class KoLClient {
   }
 
   async getWhitelists(): Promise<KoLClan[]> {
-    const clanRecuiterResponse = await this.visitUrl("clan_signup.php");
-    if (!clanRecuiterResponse) return [];
-
-    const clanIds = select(
-      '//select[@name="whichclan"]/option/@value',
-      parser.parseFromString(clanRecuiterResponse, "text/xml")
-    ).map((s) => (s.toString().match(/\d+/) ?? ["0"])[0]);
-
-    const clanNames = select(
-      '//select[@name="whichclan"]/option/text()',
-      parser.parseFromString(clanRecuiterResponse, "text/xml")
+    const clanRecuiterResponse = await this.visitUrl(
+      `clan_signup.php?place=managewhitelists`
     );
 
-    return clanNames.map((element, index) => ({
-      name: element.toString(),
-      id: clanIds[index].toString(),
-    }));
+    if (!clanRecuiterResponse) {
+      return [];
+    }
+
+    const clans: KoLClan[] = [];
+
+    for (const [, clanId, clanName] of clanRecuiterResponse.matchAll(
+      /<a href=showclan\.php\?whichclan=(\d+) class=nounder><b>([^>]*?)<\/b>(?=.*>Apply to a Clan<\/b><\/td><\/tr>)/gm
+    )) {
+      clans.push({
+        id: clanId,
+        name: clanName,
+      });
+    }
+
+    return clans;
   }
 
   async myClan(): Promise<string> {
