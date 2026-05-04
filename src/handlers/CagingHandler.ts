@@ -85,8 +85,7 @@ export class CagingHandler {
 
   async becomeCaged(message: ChatMessage, isHamster: boolean = false): Promise<void> {
     console.log(
-      `${message.who.name} (#${message.who.id}) requested a caging${
-        message.apiRequest ? " in json format" : ""
+      `${message.who.name} (#${message.who.id}) requested a caging${message.apiRequest ? " in json format" : ""
       }.`,
     );
 
@@ -296,7 +295,7 @@ export class CagingHandler {
       apiResponses: message.apiRequest,
       autoRelease:
         autoEscapeMessage &&
-        (await this._cagebot.getClient().getClanWhiteboard()).text.includes(autoEscapeMessage)
+          (await this._cagebot.getClient().getClanWhiteboard()).text.includes(autoEscapeMessage)
           ? true
           : false,
     });
@@ -427,7 +426,7 @@ export class CagingHandler {
 
       estimatedTurnsSpent += 1;
 
-      const adventureResponse = await this.getClient().visitUrl("adventure.php", {
+      let adventureResponse = await this.getClient().visitUrl("adventure.php", {
         snarfblat: 166,
       });
 
@@ -436,19 +435,19 @@ export class CagingHandler {
         caged = true;
 
         // Here we simply choose a choice, which I believe adds our caging to the clan logs which isn't really noteworthy.
-        await this.getClient().visitUrl("choice.php", {
+        adventureResponse = await this.getClient().visitUrl("choice.php", {
           whichchoice: 211,
           option: 2,
         });
 
         console.log(`Caged!`);
       } else if (/Disgustin\' Junction/.test(adventureResponse)) {
-        const choiceResponse = await this.getClient().visitUrl("choice.php", {
+        adventureResponse = await this.getClient().visitUrl("choice.php", {
           whichchoice: 198,
           option: grateChoice,
         });
 
-        if (/too tired to explore the tunnel on the other side/i.test(choiceResponse)) {
+        if (/too tired to explore the tunnel on the other side/i.test(adventureResponse)) {
           gratesOpened += 1;
           console.log(`Opened grate. Grate(s) so far: ${gratesOpened}.`);
         } else {
@@ -461,12 +460,12 @@ export class CagingHandler {
           console.log(`Hit hamster grate total: ${hamsterGrates}.`);
         }
       } else if (/Somewhat Higher and Mostly Dry/.test(adventureResponse)) {
-        const choiceResponse = await this.getClient().visitUrl("choice.php", {
+        adventureResponse = await this.getClient().visitUrl("choice.php", {
           whichchoice: 197,
           option: valveChoice,
         });
 
-        if (/as the water level in the sewer lowers by a couple of inches/i.test(choiceResponse)) {
+        if (/as the water level in the sewer lowers by a couple of inches/i.test(adventureResponse)) {
           valvesTwisted += 1;
           console.log(`Opened valve. Valve(s) so far: ${valvesTwisted}.`);
         } else {
@@ -482,7 +481,7 @@ export class CagingHandler {
         // Always set this to true so follow up encounters to this NC will result in a fight.
         skipRescues = true;
 
-        const cagePage = await this.getClient().visitUrl("choice.php", {
+        adventureResponse = await this.getClient().visitUrl("choice.php", {
           whichchoice: 199,
           option: option,
         });
@@ -490,7 +489,7 @@ export class CagingHandler {
         if (
           option == 3 &&
           !/You stare at it for 4 minutes and 33 seconds before getting bored and climbing back out of the sewer/.test(
-            cagePage,
+            adventureResponse,
           )
         ) {
           console.log(
@@ -522,7 +521,7 @@ export class CagingHandler {
         break;
       }
 
-      if (!caged && /whichchoice/.test(await this.getClient().visitUrl("place.php"))) {
+      if (!caged && /name=['"]?whichchoice['"]?/.test(adventureResponse)) {
         console.log(`Unexpectedly still in a choice after running possible choices. Aborting.`);
 
         break;
@@ -614,8 +613,7 @@ export class CagingHandler {
     }
 
     console.log(
-      `The clan has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${
-        valvesTwisted + valvesFoundTwisted
+      `The clan has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${valvesTwisted + valvesFoundTwisted
       } / 20 valves twisted.`,
     );
 
@@ -636,18 +634,15 @@ export class CagingHandler {
     } else {
       await this.getClient().sendPrivateMessage(
         message.who,
-        `I opened ${gratesOpened} grate${
-          gratesOpened === 1 ? "" : "s"
-        } and turned ${valvesTwisted} valve${valvesTwisted === 1 ? "" : "s"} on the way,${
-          timesChewedOut > 0 ? ` caged yet escaped ${timesChewedOut} times,` : ``
+        `I opened ${gratesOpened} grate${gratesOpened === 1 ? "" : "s"
+        } and turned ${valvesTwisted} valve${valvesTwisted === 1 ? "" : "s"} on the way,${timesChewedOut > 0 ? ` caged yet escaped ${timesChewedOut} times,` : ``
         } and spent ${spentAdvs} adventure${spentAdvs === 1 ? "" : "s"} (${endAdvs} remaining).`,
       );
 
       if (gratesOpened > 0 || valvesTwisted > 0) {
         await this.getClient().sendPrivateMessage(
           message.who,
-          `Hobopolis has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${
-            valvesTwisted + valvesFoundTwisted
+          `Hobopolis has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${valvesTwisted + valvesFoundTwisted
           } / 20 valves twisted.`,
         );
       }
