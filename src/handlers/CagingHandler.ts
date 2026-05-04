@@ -10,6 +10,7 @@ import {
   toJson,
   getBuffySkills,
   getMinusCombatSkills,
+  getSecondsToRollover,
 } from "../utils/Utils";
 
 export class CagingHandler {
@@ -84,14 +85,13 @@ export class CagingHandler {
 
   async becomeCaged(message: ChatMessage): Promise<void> {
     console.log(
-      `${message.who.name} (#${message.who.id}) requested a caging${
-        message.apiRequest ? " in json format" : ""
+      `${message.who.name} (#${message.who.id}) requested a caging${message.apiRequest ? " in json format" : ""
       }.`
     );
 
     await this._cagebot.testForThirdPartyUncaging();
 
-    const timeToRollover = await this.getClient().getSecondsToRollover();
+    const timeToRollover = getSecondsToRollover();
 
     // If rollover is less than 7 minutes away
     if (timeToRollover < 7 * 60) {
@@ -295,7 +295,7 @@ export class CagingHandler {
       apiResponses: message.apiRequest,
       autoRelease:
         autoEscapeMessage &&
-        (await this._cagebot.getClient().getClanWhiteboard()).text.includes(autoEscapeMessage)
+          (await this._cagebot.getClient().getClanWhiteboard()).text.includes(autoEscapeMessage)
           ? true
           : false,
     });
@@ -589,8 +589,7 @@ export class CagingHandler {
     }
 
     console.log(
-      `The clan has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${
-        valvesTwisted + valvesFoundTwisted
+      `The clan has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${valvesTwisted + valvesFoundTwisted
       } / 20 valves twisted.`
     );
 
@@ -611,18 +610,15 @@ export class CagingHandler {
     } else {
       await this.getClient().sendPrivateMessage(
         message.who,
-        `I opened ${gratesOpened} grate${
-          gratesOpened === 1 ? "" : "s"
-        } and turned ${valvesTwisted} valve${valvesTwisted === 1 ? "" : "s"} on the way,${
-          timesChewedOut > 0 ? ` caged yet escaped ${timesChewedOut} times,` : ``
+        `I opened ${gratesOpened} grate${gratesOpened === 1 ? "" : "s"
+        } and turned ${valvesTwisted} valve${valvesTwisted === 1 ? "" : "s"} on the way,${timesChewedOut > 0 ? ` caged yet escaped ${timesChewedOut} times,` : ``
         } and spent ${spentAdvs} adventure${spentAdvs === 1 ? "" : "s"} (${endAdvs} remaining).`
       );
 
       if (gratesOpened > 0 || valvesTwisted > 0) {
         await this.getClient().sendPrivateMessage(
           message.who,
-          `Hobopolis has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${
-            valvesTwisted + valvesFoundTwisted
+          `Hobopolis has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${valvesTwisted + valvesFoundTwisted
           } / 20 valves twisted.`
         );
       }

@@ -22,6 +22,8 @@ import {
   toJson,
   createApiResponse,
   getMinusCombatSkills,
+  getSecondsToRollover,
+  getSecondsElapsedInDay,
 } from "./utils/Utils";
 import { readFileSync } from "fs";
 
@@ -146,24 +148,12 @@ export class CageBot {
     console.log(`We're trying to maintain ${this._settings.maintainAdventures} adventures`);
     // TODO Current adventures
 
-    const loginIfSuccessful = () => {
-      if (this._client.isRollover()) {
-        console.log("Rollover is in progress, delaying login for 60s");
-        setTimeout(loginIfSuccessful, 60_000);
-        return;
-      }
-
-      this.performLoginTasks();
-    };
-
-    this._client.logIn().then(() => {
-      loginIfSuccessful();
-    });
+    this._client.loginWithBackoff().then(() => this.performLoginTasks());
   }
 
   performLoginTasks() {
     this.doInitialSetup().then(async () => {
-      const secondsToRollover = await this._client.getSecondsToRollover();
+      const secondsToRollover = getSecondsToRollover();
 
       console.log(`The next rollover is in ${humanReadableTime(secondsToRollover)}`);
 
@@ -177,30 +167,30 @@ export class CageBot {
 
       console.log("Initial setup complete. Polling messages.");
 
-      let handlingRollover = this._client.isRollover();
-
       setInterval(async () => {
+        if (getSecondsToRollover() < 5 || getSecondsElapsedInDay() < 4 * 60) { this._client.setLoggedOut(); return; };
+
+        if (!this._client.isLoggedIn()) {
+          const login = await this._client.logIn();
+
+          if (!login) return;
+        }
+
         this._privateMessages.push(...(await this._client.fetchNewWhispers()));
 
-        // If the last whisper check was during rollover, and it's no longer rollover
-        if (handlingRollover && !this._client.isRollover()) {
-          handlingRollover = false;
+        await this.testForThirdPartyUncaging();
 
-          await this.testForThirdPartyUncaging();
-
-          if (!this.isCaged()) {
-            await this._diet.maintainAdventures();
-          }
-        } else {
-          handlingRollover = this._client.isRollover();
+        if (!this.isCaged()) {
+          await this._diet.maintainAdventures();
         }
+
       }, 3000);
       this.processMessage();
     });
   }
 
   async testForThirdPartyUncaging(): Promise<void> {
-    if (!(await this._client.loggedIn())) return;
+    if (!(this._client.isLoggedIn())) return;
 
     this._lastCheckForThirdPartyUncaging = Date.now();
     let page = await this._client.visitUrl("place.php");
@@ -425,8 +415,7 @@ export class CageBot {
         await this.processHobopolisMessage(message);
       } else {
         console.log(
-          `Processing whisper${message.apiRequest ? ".api" : ""} from ${message.who.name} (#${
-            message.who.id
+          `Processing whisper${message.apiRequest ? ".api" : ""} from ${message.who.name} (#${message.who.id
           })`
         );
         const processedMsg = message.msg.toLowerCase();
@@ -472,8 +461,7 @@ export class CageBot {
     console.log(`${message.who.name} (#${message.who.id}) requested help.`);
 
     await message.reply(
-      `Hi! I am ${this._client.getMe()?.name} (#${
-        this._client.getMe()?.id
+      `Hi! I am ${this._client.getMe()?.name} (#${this._client.getMe()?.id
       }), and I am running Phillammon's Cagebot script.`
     );
 
@@ -548,8 +536,7 @@ export class CageBot {
     //always send info on how full the bot is.
     //todo: assumes max valves. Should check for actual
     await message.reply(
-      `My current fullness is ${status.full}/15 and drunkeness is ${status.drunk}/${
-        this._diet.getMaxDrunk() || "???"
+      `My current fullness is ${status.full}/15 and drunkeness is ${status.drunk}/${this._diet.getMaxDrunk() || "???"
       }.`
     );
   }
@@ -563,8 +550,8 @@ export class CageBot {
         state: !this._amCaged
           ? "Diving"
           : this.releaseable() || !this._cageTask || this._cageTask.requester.id === message.who.id
-          ? "Releasable"
-          : "Caged",
+            ? "Releasable"
+            : "Caged",
       };
 
       if (this._cageTask) {

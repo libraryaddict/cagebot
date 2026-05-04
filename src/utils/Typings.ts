@@ -114,6 +114,7 @@ export type KoLStatus = {
   meat: number;
   level: number;
   effects: KoLEffect[];
+  pwd: string | undefined;
 };
 
 export type KoLEffect = {
@@ -134,3 +135,4 @@ export type BuffySkill = {
   effectId: number;
   mpCost: number;
 };
+export type LoginResult = "Bad Login" | "Unknown" | "Maint" | "Success" | "Error"

@@ -1,8 +1,5 @@
-import axios from "axios"; 
-import { Agent as httpsAgent } from "https";
-import { Agent as httpAgent } from "http";
+import axios, { AxiosInstance } from "axios";
 import {
-  KOLCredentials,
   KoLUser,
   KoLStatus,
   ChatMessage as ChatMessage,
@@ -12,22 +9,22 @@ import {
   ClanWhiteboard,
   CombatMacro,
   KoLEffect,
+  LoginResult,
 } from "./Typings";
 import { RequestResponse } from "./JsonResponses";
 import { decode } from "html-entities";
 import { splitMessage, toJson } from "./Utils";
+import { HttpCookieAgent, HttpsCookieAgent } from "http-cookie-agent/http";
+import { CookieJar } from "tough-cookie";
 
-axios.defaults.timeout = 30000;
-axios.defaults.httpAgent = new httpAgent({ keepAlive: true });
-axios.defaults.httpsAgent = new httpsAgent({ keepAlive: true });
- 
+const FOR_WHO = "Cagesitter (Maintained by Irrat @ https://github.com/loathers/cagebot)";
+
 export class KoLClient {
   private _loginParameters;
-  private _credentials?: KOLCredentials;
   private _lastFetchedMessages: string = "0";
   private _player?: KoLUser;
-  private _isRollover: boolean = false;
-  private _rolloverAt?: number;
+  private _axios: AxiosInstance;
+  private _pwd: string | undefined;
 
   constructor(username: string, password: string) {
     this._loginParameters = new URLSearchParams();
@@ -36,6 +33,16 @@ export class KoLClient {
     this._loginParameters.append("password", password);
     this._loginParameters.append("secure", "0");
     this._loginParameters.append("submitbutton", "Log In");
+
+    const jar = new CookieJar();
+
+    this._axios = axios.create({
+      timeout: 30000,
+      headers: { "User-Agent": FOR_WHO },
+      baseURL: "https://www.kingdomofloathing.com/",
+      httpAgent: new HttpCookieAgent({ cookies: { jar } }),
+      httpsAgent: new HttpsCookieAgent({ cookies: { jar } }),
+    });
   }
 
   getUsername() {
@@ -63,166 +70,105 @@ export class KoLClient {
     return skills;
   }
 
-  async getSecondsToRollover(): Promise<number> {
-    if (this._isRollover) {
-      return 0;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-
-    // If rollover has not been set, or it's claiming it's expired
-    if (this._rolloverAt == undefined || this._rolloverAt <= now) {
-      this._rolloverAt = undefined;
-
-      await this.loggedIn();
-    }
-
-    if (this._rolloverAt === undefined) {
-      return 0;
-    }
-
-    return this._rolloverAt - now;
+  setLoggedOut() {
+    this._pwd = undefined;
   }
 
-  async loggedIn(): Promise<boolean> {
-    if (!this._credentials || this._isRollover) return false;
+  isLoggedIn(): boolean {
+    return this._pwd !== undefined;
+  }
 
-    try {
-      const apiResponse = await axios("https://www.kingdomofloathing.com/api.php", {
-        maxRedirects: 0,
-        withCredentials: true,
-        headers: {
-          cookie: this._credentials?.sessionCookies || "",
-        },
-        params: {
-          what: "status",
-          for: "Cagesitter (Maintained by Phillammon)",
-        },
-        validateStatus: (status) => status === 302 || status === 200,
-      });
+  async loginWithBackoff() {
+    let loginAttempts = 0;
 
-      if (apiResponse.status === 200) {
-        this._rolloverAt = parseInt(apiResponse.data["rollover"]);
-        return true;
+    while (true) {
+      loginAttempts++;
+      const result = await this.logIn();
+
+      if (result == "Success") {
+        console.log("Logged in.")
+        return;
       }
 
-      return false;
-    } catch {
-      console.log("Login check failed, returning false to be safe.");
-      return false;
+      let minutesToWait = 1;
+      let message: string;
+
+      switch (result) {
+        case "Bad Login":
+          // Could be wrong pass, could be immediately logged out, who knows.
+          // But we should back off exponentially.
+          minutesToWait = loginAttempts ^ 2;
+          message = `Bad login, will sleep ${minutesToWait} before trying again.`;
+          break;
+        case "Error":
+        case "Unknown":
+          // We should be backing off if we're encountering unknown errors
+          minutesToWait = loginAttempts;
+          message = `Unknown error, will sleep ${minutesToWait} before trying again.`;
+          break;
+        case "Maint":
+          minutesToWait = 1;
+          message = `Rollover in progress, will sleep ${minutesToWait} before trying again.`;
+          break;
+        default:
+          minutesToWait = 10;
+          message = `Unknown issue, will sleep ${minutesToWait} before trying again.`;
+          break;
+      }
+
+      await new Promise((res) => setTimeout(res, minutesToWait * 60_000));
     }
   }
 
-  async logIn(): Promise<boolean> {
-    if (await this.loggedIn()) return true;
-
-    this._credentials = undefined;
-
-    try {
-      this._isRollover = /The system is currently down for nightly maintenance/.test(
-        (await axios("https://www.kingdomofloathing.com/")).data
-      );
-
-      if (this._isRollover) {
-        console.log("Rollover appears to be in progress. Checking again in one minute.");
-      }
-    } catch {
-      this._isRollover = true;
-      console.log("Login failed.. Rollover? Checking again in one minute.");
-    }
-
-    if (this._isRollover) {
-      setTimeout(() => this.logIn(), 60000);
-      return false;
-    }
+  async logIn(): Promise<LoginResult> {
+    this._pwd = undefined;
 
     console.log(`Not logged in. Logging in as ${this._loginParameters.get("loginname")}`);
 
     try {
-      const loginResponse = await axios("https://www.kingdomofloathing.com/login.php", {
+      const loginResponse = await this._axios("login.php", {
         method: "POST",
         data: this._loginParameters,
-        maxRedirects: 0,
-        validateStatus: (status) => status === 302,
       });
-      const sessionCookies = loginResponse.headers?["set-cookie"]
-        .map((cookie: string) => cookie.split(";")[0])
-        .join("; ") : "";
-      const apiResponse = await axios("https://www.kingdomofloathing.com/api.php", {
-        withCredentials: true,
-        headers: {
-          cookie: sessionCookies,
-        },
-        params: {
-          what: "status",
-          for: "Cagesitter (Maintained by Phillammon)",
-        },
-      });
-      this._credentials = {
-        sessionCookies: sessionCookies,
-        pwdhash: apiResponse.data.pwd,
-      };
-      this._player = {
-        id: apiResponse.data.playerid,
-        name: apiResponse.data.name,
-      };
-      console.log("Login success.");
-      return true;
-    } catch {
-      console.log("Login failed..");
-      return false;
+
+      const location = loginResponse.headers.location || "";
+
+      if (location.includes("maint.php")) {
+        return "Maint"
+      }
+
+      if (location.includes("login.php")) {
+        return "Bad Login"
+      }
+
+      const status = await this.getStatus();
+
+      if (!status.pwd) {
+        return "Unknown";
+      }
+
+      return "Success"
+    } catch (e) {
+      console.error(e);
+      return "Error";
     }
   }
 
   async visitUrl(
     url: string,
     parameters: Record<string, any> = {},
-    pwd: Boolean = true,
+    pwd: boolean = true,
     data?: any
   ): Promise<any> {
-    if (this._isRollover || (await this.getSecondsToRollover()) <= 1) {
-      return null;
-    }
-
     try {
-      const page = await axios(`https://www.kingdomofloathing.com/${url}`, {
+      const page = await this._axios(url, {
         method: "POST",
-        withCredentials: true,
-        headers: {
-          cookie: this._credentials?.sessionCookies || "",
-        },
         params: {
-          ...(pwd ? { pwd: this._credentials?.pwdhash } : {}),
+          ...(pwd && this._pwd ? { pwd: this._pwd } : {}),
           ...parameters,
         },
         data: data,
       });
-
-      if (page.headers["set-cookie"] && this._credentials != null) {
-        const cookies: any = {};
-
-        for (let [name, cookie] of this._credentials.sessionCookies
-          .split("; ")
-          .map((s) => s.split("="))) {
-          if (!cookie) {
-            continue;
-          }
-
-          cookies[name] = cookie;
-        }
-
-        const sessionCookies = page.headers["set-cookie"].map((cookie: string) =>
-          cookie.split(";")[0].trim().split("=")
-        );
-
-        for (let [name, cookie] of sessionCookies) {
-          cookies[name] = cookie;
-        }
-
-        this._credentials.sessionCookies = Object.entries(cookies)
-          .map(([key, value]) => `${key}=${value}`)
-          .join("; ");
-      }
 
       return page.data;
     } catch {
@@ -259,20 +205,20 @@ export class KoLClient {
 
   async equip(itemId: number): Promise<void> {
     await this.visitUrl(
-      `inv_equip.php?pwd=${this._credentials?.pwdhash}&which=2&action=equip&whichitem=${itemId}&ajax=1`
+      `inv_equip.php?pwd=${this._pwd}&which=2&action=equip&whichitem=${itemId}&ajax=1`
     );
   }
 
   async castSkill(skill: number, amount: number = 1) {
     await this.visitUrl(
-      `runskillz.php?action=Skillz&whichskill=${skill}&targetplayer=${this._player?.id}&pwd=${this._credentials?.pwdhash}&quantity=${amount}&ajax=1`
+      `runskillz.php?action=Skillz&whichskill=${skill}&targetplayer=${this._player?.id}&pwd=${this._pwd}&quantity=${amount}&ajax=1`
     );
   }
 
   async getStatus(): Promise<KoLStatus> {
     const apiResponse = await this.visitUrl("api.php", {
       what: "status",
-      for: "Cagesitter (Maintained by Phillammon)",
+      for: FOR_WHO,
     });
 
     if (!apiResponse || !apiResponse["equipment"]) {
@@ -290,8 +236,16 @@ export class KoLClient {
         rollover: Date.now(),
         turnsPlayed: 0,
         effects: [],
+        pwd: undefined
       };
     }
+
+    this._player = {
+      id: apiResponse["playerid"],
+      name: apiResponse["name"],
+    };
+
+    this._pwd = apiResponse["pwd"];
 
     const equipment = new Map();
     const equips = apiResponse["equipment"];
@@ -305,7 +259,7 @@ export class KoLClient {
 
     if (apiResponse["effects"]) {
       for (const apiEffect of Object.values(apiResponse["effects"]) as string[][]) {
-        // description-UUID [Name, Duration, Shorthand ID, source, Effect ID]
+        // description-UUID[Name, Duration, Shorthand ID, source, Effect ID]
         const effect: KoLEffect = {
           name: apiEffect[0],
           duration: parseInt(apiEffect[1]),
@@ -335,18 +289,11 @@ export class KoLClient {
       rollover: parseInt(apiResponse["rollover"]),
       turnsPlayed: parseInt(apiResponse["turnsplayed"]) || 0,
       effects: effects,
+      pwd: apiResponse["pwd"]
     };
   }
 
-  isRollover(): boolean {
-    return this._isRollover;
-  }
-
   async fetchNewWhispers(): Promise<ChatMessage[]> {
-    if (this._isRollover || !(await this.logIn())) {
-      return [];
-    }
-
     const newChatMessagesResponse = await this.visitUrl("newchatmessages.php", {
       j: 1,
       lasttime: this._lastFetchedMessages,
@@ -363,25 +310,25 @@ export class KoLClient {
       )
       .map(
         (msg: KOLMessage) =>
-          ({
-            private: msg.type === "private",
-            who: msg.who,
-            msg: msg.msg,
-            apiRequest: msg.msg?.includes(".api"),
-            reply: async (message: string) => {
-              if (!msg.who) {
-                return;
-              }
+        ({
+          private: msg.type === "private",
+          who: msg.who,
+          msg: msg.msg,
+          apiRequest: msg.msg?.includes(".api"),
+          reply: async (message: string) => {
+            if (!msg.who) {
+              return;
+            }
 
-              if (msg.type === "private") {
-                await this.sendPrivateMessage(msg.who, message);
-              } else {
-                for (let msg of splitMessage(message)) {
-                  await this.useChatMacro(`/w Hobopolis ${msg}`);
-                }
+            if (msg.type === "private") {
+              await this.sendPrivateMessage(msg.who, message);
+            } else {
+              for (let msg of splitMessage(message)) {
+                await this.useChatMacro(`/w Hobopolis ${msg}`);
               }
-            },
-          } as ChatMessage)
+            }
+          },
+        } as ChatMessage)
       );
 
     newWhispers.forEach((message) => {
@@ -494,7 +441,7 @@ export class KoLClient {
   async getInventory(): Promise<Map<number, number>> {
     const apiResponse = await this.visitUrl("api.php", {
       what: "inventory",
-      for: "Cagesitter (Maintained by Phillammon)",
+      for: FOR_WHO,
     });
 
     const map: Map<number, number> = new Map();
@@ -564,7 +511,7 @@ export class KoLClient {
 
   async getAutoAttackMacro(): Promise<CombatMacro | undefined> {
     const apiResponse = await this.visitUrl(
-      `account.php?action=loadtab&value=combat&pwd=${this._credentials?.pwdhash}`
+      `account.php?action=loadtab&value=combat&pwd=${this._pwd}`
     );
 
     if (!apiResponse) {
@@ -627,19 +574,19 @@ export class KoLClient {
     itemId = mallResult.itemId + itemId;
 
     await this.visitUrl(
-      `mallstore.php?buying=1&quantity=${amount}&whichitem=${itemId}&ajax=1&pwd=${this._credentials?.pwdhash}&whichstore=${mallResult.storeId}`
+      `mallstore.php?buying=1&quantity=${amount}&whichitem=${itemId}&ajax=1&pwd=${this._pwd}&whichstore=${mallResult.storeId}`
     );
   }
 
   async buyFromNPC(shopName: string, row: number, amount: number): Promise<void> {
     await this.visitUrl(
-      `shop.php?whichshop=${shopName}&action=buyitem&quantity=${amount}&whichrow=${row}&pwd=${this._credentials?.pwdhash}`
+      `shop.php?whichshop=${shopName}&action=buyitem&quantity=${amount}&whichrow=${row}&pwd=${this._pwd}`
     );
   }
 
   async multiUse(item: number, amount: number): Promise<void> {
     await this.visitUrl(
-      `multiuse.php?whichitem=${item}&action=useitem&ajax=1&quantity=${amount}&pwd=${this._credentials?.pwdhash}`
+      `multiuse.php?whichitem=${item}&action=useitem&ajax=1&quantity=${amount}&pwd=${this._pwd}`
     );
   }
 

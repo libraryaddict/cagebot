@@ -14,13 +14,29 @@ import { readFileSync, writeFileSync } from "fs";
 import { decode, encode } from "html-entities";
 
 const savedFileName: string = "./data/runtime_state.json";
+const secondsInDay = 24 * 60 * 60;
+const originalRollover = 1044847800;
+
+
+export function getSecondsToRollover() {
+  return secondsInDay - getSecondsElapsedInDay();
+}
+
+export function getSecondsElapsedInDay(
+  time: number = Math.round(Date.now() / 1000),
+) {
+  const secondsSinceOriginalTime = time - originalRollover;
+  const secondsElapsedInDay = secondsSinceOriginalTime % secondsInDay;
+
+  return secondsElapsedInDay;
+}
 
 export function humanReadableTime(seconds: number): string {
   return `${Math.floor(seconds / 3600)}:${Math.floor((seconds % 3600) / 60)
     .toString()
     .padStart(2, "0")}:${Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0")}`;
+      .toString()
+      .padStart(2, "0")}`;
 }
 
 /**
