@@ -26,6 +26,7 @@ import {
   getSecondsElapsedInDay,
 } from "./utils/Utils";
 import { readFileSync } from "fs";
+import { report } from "process";
 
 const mutex = new Mutex();
 
@@ -99,15 +100,12 @@ export class CageBot {
   }
 
   async saveSettings() {
-    if (!this.getDietHandler().getMaxDrunk()) {
-      return;
-    }
-
     const status = await this.getClient().getStatus();
 
     saveSettings(
       status.turnsPlayed,
-      this.getDietHandler().getMaxDrunk() || 14,
+      this.getDietHandler().getMaxDrunk(),
+      this.getDietHandler().getMaxFull(),
       this._knownSkills,
       this.getCageTask()
     );
@@ -134,7 +132,8 @@ export class CageBot {
       return;
     }
 
-    this.getDietHandler().setMaxDrunk(settings.maxDrunk);
+    this.getDietHandler().setMaxOrgans(settings.maxDrunk, settings.maxFull);
+
     this._cageTask = settings.cageTask;
     this._knownSkills = getMinusCombatSkills().filter((skill) =>
       settings.knownSkills.includes(skill.skillId)
@@ -533,11 +532,13 @@ export class CageBot {
         );
       }
     }
+
+    const reported = this.getDietHandler().getReportedOrgans();
+
     //always send info on how full the bot is.
     //todo: assumes max valves. Should check for actual
     await message.reply(
-      `My current fullness is ${status.full}/15 and drunkeness is ${status.drunk}/${this._diet.getMaxDrunk() || "???"
-      }.`
+      `My current fullness is ${status.full}/${reported.stomach} and drunkeness is ${status.drunk}/${reported.liver}.`
     );
   }
 
@@ -566,9 +567,9 @@ export class CageBot {
       type: "status",
       advs: status.adventures,
       full: status.full,
-      maxFull: 15,
+      maxFull: this.getDietHandler().getMaxFull(),
       drunk: status.drunk,
-      maxDrunk: this._diet.getMaxDrunk(),
+      maxDrunk: this.getDietHandler().getMaxDrunk(),
       caged: this._amCaged,
       status: busyStatus,
     };

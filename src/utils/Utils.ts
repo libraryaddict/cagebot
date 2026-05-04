@@ -93,7 +93,8 @@ export async function sendApiResponse(
 
 export function saveSettings(
   turnsPlayed: number,
-  maxDrunk: number,
+  maxDrunk: number | undefined,
+  maxFull: number | undefined,
   knownSkills: KoLSkill[],
   task?: CageTask
 ) {
@@ -102,6 +103,7 @@ export function saveSettings(
     JSON.stringify({
       validAtTurn: turnsPlayed,
       maxDrunk: maxDrunk,
+      ...(maxFull !== undefined ? { maxFull: maxFull } : {}),
       cageTask: task,
       knownSkills: knownSkills.map((skill) => skill.skillId),
     } as SavedSettings),
@@ -121,7 +123,8 @@ export function loadSettings(): SavedSettings | undefined {
 
     const settings: SavedSettings = {
       validAtTurn: parseInt(json["validAtTurn"]),
-      maxDrunk: parseInt(json["maxDrunk"]),
+      maxDrunk: json["maxDrunk"] !== undefined ? parseInt(json["maxDrunk"]) : undefined,
+      maxFull: json["maxFull"] !== undefined ? parseInt(json["maxFull"]) : undefined,
       knownSkills: ((json["knownSkills"] ?? []) as string[]).map((s) => parseInt(s)),
     };
 

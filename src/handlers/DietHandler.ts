@@ -1,18 +1,27 @@
 import { DietResponse } from "../utils/JsonResponses";
 import { CageBot } from "../CageBot";
 import { KoLClient } from "../utils/KoLClient";
-import { Diet, Settings, ChatMessage, KoLStatus } from "../utils/Typings";
+import { Diet, Settings, ChatMessage, KoLStatus, OrganSize, ReportedOrgans } from "../utils/Typings";
 import { getLilBarrelDiet, getManualDiet, sendApiResponse, toJson } from "../utils/Utils";
 
 export class DietHandler {
   private _diet?: Diet[];
   private _cagebot: CageBot;
   private _maxDrunk?: number;
+  private _maxFull?: number;
   private _usingBarrelMimic: boolean = false;
   private _ownsTuxedo: boolean = false;
 
   constructor(cagebot: CageBot) {
     this._cagebot = cagebot;
+  }
+
+  // When we tell the player
+  getReportedOrgans(): ReportedOrgans {
+    return {
+      stomach: this._maxFull != null ? String(this._maxFull) : "???",
+      liver: this._maxDrunk != null ? String(this._maxDrunk) : "???",
+    }
   }
 
   getClient(): KoLClient {
@@ -27,20 +36,22 @@ export class DietHandler {
     return this._maxDrunk;
   }
 
-  setMaxDrunk(maxDrunk: number) {
+  getMaxFull(): number | undefined {
+    return this._maxFull;
+  }
+
+  async isOrgansOverfilled(status: KoLStatus): Promise<boolean> {
+    const capacity = await this.getOrganCapacity(status);
+
+    return status.full > capacity.stomach || status.drunk > capacity.liver;
+  }
+
+  setMaxOrgans(maxDrunk: number | undefined, maxFull: number | undefined) {
     this._maxDrunk = maxDrunk;
+    this._maxFull = maxFull;
   }
 
   async doSetup() {
-    if (!this._cagebot.isCaged() && !this._maxDrunk) {
-      // Liver of steel is Skill ID #1
-      if ((await this.getClient().getSkills()).includes(1)) {
-        this._maxDrunk = 19;
-      } else {
-        this._maxDrunk = 14;
-      }
-    }
-
     if (this._diet) {
       return;
     }
@@ -91,10 +102,13 @@ export class DietHandler {
       return beforeAdv;
     }
 
+    // Helper function that'll fill in our organs if needed
+    const organs = await this.getOrganCapacity(status);
+
     const currentFull = status.full;
     const currentDrunk = status.drunk;
-    const fullRemaining = 15 - currentFull;
-    const drunkRemaining = (this._maxDrunk || 14) - currentDrunk;
+    const fullRemaining = organs.stomach - currentFull;
+    const drunkRemaining = organs.liver - currentDrunk;
 
     if (fullRemaining <= 0 && drunkRemaining <= 0) {
       // have consumed as much as we can for the day and low on adventures
@@ -215,8 +229,7 @@ export class DietHandler {
 
   async sendDiet(message: ChatMessage) {
     console.log(
-      `${message.who.name} (#${message.who.id}) requested diet information${
-        message.apiRequest ? " in json format" : ""
+      `${message.who.name} (#${message.who.id}) requested diet information${message.apiRequest ? " in json format" : ""
       }.`
     );
 
@@ -247,7 +260,7 @@ export class DietHandler {
     let drink: number = 0;
     let fullAdvs: number = 0;
     let drunkAdvs: number = 0;
-    let advs: number = this.getPossibleAdventuresFromDiet(status, inventory);
+    let advs: number = await this.getPossibleAdventuresFromDiet(status, inventory);
 
     for (let diet of this._diet || []) {
       if (!inventory.has(diet.id) || diet.level > level) {
@@ -311,13 +324,45 @@ export class DietHandler {
     }
   }
 
-  getPossibleAdventuresFromDiet(status: KoLStatus, inv: Map<number, number>): number {
+  private async getOrganCapacity(status: KoLStatus): Promise<OrganSize> {
+    // If we have some food in us, and some drink in us, and we don't know our limits...
+    if (status.full > 0 && status.drunk > 0 && (this._maxDrunk === undefined || this._maxFull === undefined)) {
+      // Request our limits
+      const capacity = await this.getClient().parseCharpaneForOrganCapacity(status);
+
+      // If limits found, set them
+      if (capacity) {
+        this._maxDrunk = capacity.liver;
+        this._maxFull = capacity.stomach;
+      }
+    }
+
+    let liver = this._maxDrunk;
+
+    // If liver has not been set
+    if (liver == null) {
+      // Liver of steel is Skill ID #1
+      if ((await this.getClient().getSkills()).includes(1)) {
+        liver = 19;
+      } else {
+        liver = 14;
+      }
+    }
+
+    return {
+      stomach: this._maxFull || 15,
+      liver: liver
+    }
+  }
+
+  async getPossibleAdventuresFromDiet(status: KoLStatus, inv: Map<number, number>): Promise<number> {
     if (!this._diet) {
       return 0;
     }
 
-    let drunkRemaining: number = (this._maxDrunk || 14) - status.drunk;
-    let fullRemaining: number = 14 - status.full;
+    const capacity = await this.getOrganCapacity(status);
+    let drunkRemaining: number = capacity.liver - status.drunk;
+    let fullRemaining: number = capacity.stomach - status.full;
     let advs: number = 0;
 
     for (let diet of this._diet) {

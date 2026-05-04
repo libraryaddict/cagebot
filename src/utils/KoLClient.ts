@@ -10,6 +10,7 @@ import {
   CombatMacro,
   KoLEffect,
   LoginResult,
+  OrganSize,
 } from "./Typings";
 import { RequestResponse } from "./JsonResponses";
 import { decode } from "html-entities";
@@ -226,7 +227,7 @@ export class KoLClient {
         level: 1,
         adventures: 10,
         meat: 0,
-        drunk: 19,
+        drunk: 15,
         full: 14,
         hp: 1,
         mp: 1,
@@ -236,7 +237,10 @@ export class KoLClient {
         rollover: Date.now(),
         turnsPlayed: 0,
         effects: [],
-        pwd: undefined
+        pwd: undefined,
+        flag_config: {
+          fullnesscounter: "0"
+        }
       };
     }
 
@@ -289,8 +293,55 @@ export class KoLClient {
       rollover: parseInt(apiResponse["rollover"]),
       turnsPlayed: parseInt(apiResponse["turnsplayed"]) || 0,
       effects: effects,
-      pwd: apiResponse["pwd"]
+      pwd: apiResponse["pwd"],
+      flag_config: {
+        fullnesscounter: apiResponse["flag_config"]["fullnesscounter"] || "0"
+      }
     };
+  }
+
+  async parseCharpaneForOrganCapacity(status: KoLStatus): Promise<OrganSize | undefined> {
+    // Only attempt when both would display
+    if (status.drunk <= 0 || status.full <= 0) {
+      return undefined;
+    }
+
+    // If fullness counter isn't turned on as per status, enable it
+    if (status.flag_config.fullnesscounter !== "1") {
+      await this.visitUrl(`account.php`, {
+        am: 1, action: "flag_fullnesscounter", value: 1, ajax: 1
+      });
+    }
+
+    const charpane = (await this.visitUrl(`charpane.php`)) as string;
+
+    if (!charpane) {
+      return undefined;
+    }
+
+    const organsMatch = charpane.match(/>(?:(\d+)\s*\/\s*(\d+))<.*?(?:>(\d+)\s*\/\s*(\d+)<)(?=.*hp\.gif)/);
+
+    if (!organsMatch || organsMatch.length != 5) {
+      console.log(`Unable to parse organ capacity, has there been some backend changes?`);
+      return undefined;
+    }
+
+    const currentFull = parseInt(organsMatch[1]);
+    const fullLimit = parseInt(organsMatch[2]);
+    const currentDrunk = parseInt(organsMatch[3]);
+    const drunkLimit = parseInt(organsMatch[4]);
+
+    // Attempt to validate it against the status
+
+    if (status.full != currentFull || status.drunk != currentDrunk) {
+      console.log(`Unable to parse organ capacity, has there been some backend changes?`);
+      return undefined;
+    }
+
+    return {
+      stomach: fullLimit,
+      liver: drunkLimit
+    }
   }
 
   async fetchNewWhispers(): Promise<ChatMessage[]> {
@@ -549,7 +600,7 @@ export class KoLClient {
       const itemId = parseInt(result[2]);
       const price = parseInt(result[3]);
       const stockLevel = parseInt(result[4].replaceAll(",", ""));
-      const limit = result[5] == null ? undefined : parseInt(result[5].replaceAll(",", ""));
+      const limit = result[5] ? undefined : parseInt(result[5].replaceAll(",", ""));
 
       results.push({
         storeId: storeId,

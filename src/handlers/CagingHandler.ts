@@ -311,7 +311,6 @@ export class CagingHandler {
       this.getClient()
     );
     let currentAdventures = status.adventures;
-    let currentDrunk: number = status.drunk;
     let estimatedTurnsSpent: number = 0;
     let totalTurnsSpent: number = 0;
     let failedToMaintain = false;
@@ -359,7 +358,7 @@ export class CagingHandler {
     while (
       !caged &&
       currentAdventures - estimatedTurnsSpent > 11 &&
-      currentDrunk <= (this._cagebot.getDietHandler().getMaxDrunk() || 14)
+      !(await this._cagebot.getDietHandler().isOrgansOverfilled(status))
     ) {
       if (turnsSpentSinceLastCheck() > (maintainEffects ? 6 : 30)) {
         if (!(await adventuringNormally())) {
@@ -391,8 +390,6 @@ export class CagingHandler {
           let adventuresAfterDiet = await this._cagebot
             .getDietHandler()
             .maintainAdventures(message);
-          // Update current drunk level
-          currentDrunk = status.drunk;
           // If the adventures remaining are at, or less than our estimated adventures remaining. Then we failed to maintain our diet.
           failedToMaintain =
             adventuresPreDiet == adventuresAfterDiet &&
