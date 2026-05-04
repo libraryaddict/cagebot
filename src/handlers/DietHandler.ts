@@ -1,7 +1,14 @@
 import { DietResponse } from "../utils/JsonResponses";
 import { CageBot } from "../CageBot";
 import { KoLClient } from "../utils/KoLClient";
-import { Diet, Settings, ChatMessage, KoLStatus, OrganSize, ReportedOrgans } from "../utils/Typings";
+import {
+  Diet,
+  Settings,
+  ChatMessage,
+  KoLStatus,
+  OrganSize,
+  ReportedOrgans,
+} from "../utils/Typings";
 import { getLilBarrelDiet, getManualDiet, sendApiResponse, toJson } from "../utils/Utils";
 
 export class DietHandler {
@@ -21,7 +28,7 @@ export class DietHandler {
     return {
       stomach: this._maxFull != null ? String(this._maxFull) : "???",
       liver: this._maxDrunk != null ? String(this._maxDrunk) : "???",
-    }
+    };
   }
 
   getClient(): KoLClient {
@@ -196,12 +203,12 @@ export class DietHandler {
             await sendApiResponse(
               message,
               "Issue",
-              `lack_edibles:${itemIdsMissing.join(",")}` as any
+              `lack_edibles:${itemIdsMissing.join(",")}` as any,
             );
           } else {
             await this.getClient().sendPrivateMessage(
               message.who,
-              `Please tell my operator that I am out of ${itemsMissing.join(", ")}.`
+              `Please tell my operator that I am out of ${itemsMissing.join(", ")}.`,
             );
           }
         }
@@ -212,14 +219,14 @@ export class DietHandler {
       // If it didn't restore enough adventures and we definitely did gain adventures
       if (beforeAdv < afterAdv && afterAdv <= this.getSettings().maintainAdventures) {
         console.log(
-          `Diet success! We gained ${advsGained} adventures! However we're below our threshold so we're going to call this again.`
+          `Diet success! We gained ${advsGained} adventures! However we're below our threshold so we're going to call this again.`,
         );
 
         return this.maintainAdventures(message);
       }
 
       console.log(
-        `Diet success! Gained ${advsGained} adventures! Sastified with ${afterAdv} total adventures!`
+        `Diet success! Gained ${advsGained} adventures! Sastified with ${afterAdv} total adventures!`,
       );
     }
 
@@ -229,8 +236,9 @@ export class DietHandler {
 
   async sendDiet(message: ChatMessage) {
     console.log(
-      `${message.who.name} (#${message.who.id}) requested diet information${message.apiRequest ? " in json format" : ""
-      }.`
+      `${message.who.name} (#${message.who.id}) requested diet information${
+        message.apiRequest ? " in json format" : ""
+      }.`,
     );
 
     const dietStatus = await this.getDietStatus();
@@ -239,13 +247,13 @@ export class DietHandler {
       await this.getClient().sendPrivateMessage(message.who, toJson(dietStatus));
     } else {
       await message.reply(
-        `My remaining diet today has an expected outcome of ${dietStatus.possibleAdvsToday} adventures.`
+        `My remaining diet today has an expected outcome of ${dietStatus.possibleAdvsToday} adventures.`,
       );
       await message.reply(
-        `I have enough food for ${dietStatus.food} fullness and ${dietStatus.fullnessAdvs} adventures.`
+        `I have enough food for ${dietStatus.food} fullness and ${dietStatus.fullnessAdvs} adventures.`,
       );
       await message.reply(
-        `I have enough drinks for another ${dietStatus.drink} inebriety and ${dietStatus.drunknessAdvs} adventures.`
+        `I have enough drinks for another ${dietStatus.drink} inebriety and ${dietStatus.drunknessAdvs} adventures.`,
       );
 
       await this.cryAboutDiet(message);
@@ -326,7 +334,11 @@ export class DietHandler {
 
   private async getOrganCapacity(status: KoLStatus): Promise<OrganSize> {
     // If we have some food in us, and some drink in us, and we don't know our limits...
-    if (status.full > 0 && status.drunk > 0 && (this._maxDrunk === undefined || this._maxFull === undefined)) {
+    if (
+      status.full > 0 &&
+      status.drunk > 0 &&
+      (this._maxDrunk === undefined || this._maxFull === undefined)
+    ) {
       // Request our limits
       const capacity = await this.getClient().parseCharpaneForOrganCapacity(status);
 
@@ -351,11 +363,14 @@ export class DietHandler {
 
     return {
       stomach: this._maxFull || 15,
-      liver: liver
-    }
+      liver: liver,
+    };
   }
 
-  async getPossibleAdventuresFromDiet(status: KoLStatus, inv: Map<number, number>): Promise<number> {
+  async getPossibleAdventuresFromDiet(
+    status: KoLStatus,
+    inv: Map<number, number>,
+  ): Promise<number> {
     if (!this._diet) {
       return 0;
     }

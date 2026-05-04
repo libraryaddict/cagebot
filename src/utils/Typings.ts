@@ -22,12 +22,12 @@ export type SavedSettings = {
 export type OrganSize = {
   stomach: number;
   liver: number;
-}
+};
 
 export type ReportedOrgans = {
   stomach: string;
   liver: string;
-}
+};
 
 export type Diet = {
   type: "food" | "drink";
@@ -130,7 +130,7 @@ export type KoLStatus = {
   pwd: string | undefined;
   flag_config: {
     fullnesscounter: string;
-  }
+  };
 };
 
 export type KoLEffect = {
@@ -151,4 +151,4 @@ export type BuffySkill = {
   effectId: number;
   mpCost: number;
 };
-export type LoginResult = "Bad Login" | "Unknown" | "Maint" | "Success" | "Error"
+export type LoginResult = "Bad Login" | "Unknown" | "Maint" | "Success" | "Error";

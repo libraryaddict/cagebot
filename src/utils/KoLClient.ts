@@ -87,7 +87,7 @@ export class KoLClient {
       const result = await this.logIn();
 
       if (result == "Success") {
-        console.log("Logged in.")
+        console.log("Logged in.");
         return;
       }
 
@@ -135,11 +135,11 @@ export class KoLClient {
       const location = loginResponse.headers.location || "";
 
       if (location.includes("maint.php")) {
-        return "Maint"
+        return "Maint";
       }
 
       if (location.includes("login.php")) {
-        return "Bad Login"
+        return "Bad Login";
       }
 
       const status = await this.getStatus();
@@ -148,7 +148,7 @@ export class KoLClient {
         return "Unknown";
       }
 
-      return "Success"
+      return "Success";
     } catch (e) {
       console.error(e);
       return "Error";
@@ -159,7 +159,7 @@ export class KoLClient {
     url: string,
     parameters: Record<string, any> = {},
     pwd: boolean = true,
-    data?: any
+    data?: any,
   ): Promise<any> {
     try {
       const page = await this._axios(url, {
@@ -206,13 +206,13 @@ export class KoLClient {
 
   async equip(itemId: number): Promise<void> {
     await this.visitUrl(
-      `inv_equip.php?pwd=${this._pwd}&which=2&action=equip&whichitem=${itemId}&ajax=1`
+      `inv_equip.php?pwd=${this._pwd}&which=2&action=equip&whichitem=${itemId}&ajax=1`,
     );
   }
 
   async castSkill(skill: number, amount: number = 1) {
     await this.visitUrl(
-      `runskillz.php?action=Skillz&whichskill=${skill}&targetplayer=${this._player?.id}&pwd=${this._pwd}&quantity=${amount}&ajax=1`
+      `runskillz.php?action=Skillz&whichskill=${skill}&targetplayer=${this._player?.id}&pwd=${this._pwd}&quantity=${amount}&ajax=1`,
     );
   }
 
@@ -239,8 +239,8 @@ export class KoLClient {
         effects: [],
         pwd: undefined,
         flag_config: {
-          fullnesscounter: "0"
-        }
+          fullnesscounter: "0",
+        },
       };
     }
 
@@ -295,8 +295,8 @@ export class KoLClient {
       effects: effects,
       pwd: apiResponse["pwd"],
       flag_config: {
-        fullnesscounter: apiResponse["flag_config"]["fullnesscounter"] || "0"
-      }
+        fullnesscounter: apiResponse["flag_config"]["fullnesscounter"] || "0",
+      },
     };
   }
 
@@ -309,7 +309,10 @@ export class KoLClient {
     // If fullness counter isn't turned on as per status, enable it
     if (status.flag_config.fullnesscounter !== "1") {
       await this.visitUrl(`account.php`, {
-        am: 1, action: "flag_fullnesscounter", value: 1, ajax: 1
+        am: 1,
+        action: "flag_fullnesscounter",
+        value: 1,
+        ajax: 1,
       });
     }
 
@@ -319,7 +322,9 @@ export class KoLClient {
       return undefined;
     }
 
-    const organsMatch = charpane.match(/>(?:(\d+)\s*\/\s*(\d+))<.*?(?:>(\d+)\s*\/\s*(\d+)<)(?=.*hp\.gif)/);
+    const organsMatch = charpane.match(
+      />(?:(\d+)\s*\/\s*(\d+))<.*?(?:>(\d+)\s*\/\s*(\d+)<)(?=.*hp\.gif)/,
+    );
 
     if (!organsMatch || organsMatch.length != 5) {
       console.log(`Unable to parse organ capacity, has there been some backend changes?`);
@@ -340,8 +345,8 @@ export class KoLClient {
 
     return {
       stomach: fullLimit,
-      liver: drunkLimit
-    }
+      liver: drunkLimit,
+    };
   }
 
   async fetchNewWhispers(): Promise<ChatMessage[]> {
@@ -357,29 +362,29 @@ export class KoLClient {
     const newWhispers: ChatMessage[] = newChatMessagesResponse["msgs"]
       .filter(
         (msg: KOLMessage) =>
-          msg["type"] === "private" || (msg["type"] === "public" && msg["channel"] === "hobopolis")
+          msg["type"] === "private" || (msg["type"] === "public" && msg["channel"] === "hobopolis"),
       )
       .map(
         (msg: KOLMessage) =>
-        ({
-          private: msg.type === "private",
-          who: msg.who,
-          msg: msg.msg,
-          apiRequest: msg.msg?.includes(".api"),
-          reply: async (message: string) => {
-            if (!msg.who) {
-              return;
-            }
-
-            if (msg.type === "private") {
-              await this.sendPrivateMessage(msg.who, message);
-            } else {
-              for (let msg of splitMessage(message)) {
-                await this.useChatMacro(`/w Hobopolis ${msg}`);
+          ({
+            private: msg.type === "private",
+            who: msg.who,
+            msg: msg.msg,
+            apiRequest: msg.msg?.includes(".api"),
+            reply: async (message: string) => {
+              if (!msg.who) {
+                return;
               }
-            }
-          },
-        } as ChatMessage)
+
+              if (msg.type === "private") {
+                await this.sendPrivateMessage(msg.who, message);
+              } else {
+                for (let msg of splitMessage(message)) {
+                  await this.useChatMacro(`/w Hobopolis ${msg}`);
+                }
+              }
+            },
+          }) as ChatMessage,
       );
 
     newWhispers.forEach((message) => {
@@ -405,7 +410,7 @@ export class KoLClient {
     }
 
     const match = page.match(
-      />Leader:<\/td><td valign=top><b><a href="showplayer\.php\?who=(\d+)">/
+      />Leader:<\/td><td valign=top><b><a href="showplayer\.php\?who=(\d+)">/,
     );
 
     if (!match) {
@@ -423,7 +428,7 @@ export class KoLClient {
     }
 
     const match = members.match(
-      /href="showplayer\.php\?who=(\d+)">[^<]+?<\/a><font color=gray><b> \(inactive\)<\/b>/
+      /href="showplayer\.php\?who=(\d+)">[^<]+?<\/a><font color=gray><b> \(inactive\)<\/b>/,
     );
 
     if (!match) {
@@ -444,9 +449,7 @@ export class KoLClient {
   }
 
   async getWhitelists(): Promise<KoLClan[]> {
-    const clanRecuiterResponse = await this.visitUrl(
-      `clan_signup.php?place=managewhitelists`
-    );
+    const clanRecuiterResponse = await this.visitUrl(`clan_signup.php?place=managewhitelists`);
 
     if (!clanRecuiterResponse) {
       return [];
@@ -455,7 +458,7 @@ export class KoLClient {
     const clans: KoLClan[] = [];
 
     for (const [, clanId, clanName] of clanRecuiterResponse.matchAll(
-      /<a href=showclan\.php\?whichclan=(\d+) class=nounder><b>([^>]*?)<\/b>(?=.*>Apply to a Clan<\/b><\/td><\/tr>)/gm
+      /<a href=showclan\.php\?whichclan=(\d+) class=nounder><b>([^>]*?)<\/b>(?=.*>Apply to a Clan<\/b><\/td><\/tr>)/gm,
     )) {
       clans.push({
         id: clanId,
@@ -472,7 +475,7 @@ export class KoLClient {
     });
 
     return ((myClanResponse as string).match(
-      /\<b\>\<a class=nounder href=\"showclan\.php\?whichclan=(\d+)/
+      /\<b\>\<a class=nounder href=\"showclan\.php\?whichclan=(\d+)/,
     ) ?? ["", ""])[1];
   }
 
@@ -533,7 +536,7 @@ export class KoLClient {
       "account_combatmacros.php",
       {},
       false,
-      `macroid=${macro.id}&action=edit&what=Edit`
+      `macroid=${macro.id}&action=edit&what=Edit`,
     );
 
     if (!apiResponse) {
@@ -562,7 +565,7 @@ export class KoLClient {
 
   async getAutoAttackMacro(): Promise<CombatMacro | undefined> {
     const apiResponse = await this.visitUrl(
-      `account.php?action=loadtab&value=combat&pwd=${this._pwd}`
+      `account.php?action=loadtab&value=combat&pwd=${this._pwd}`,
     );
 
     if (!apiResponse) {
@@ -571,7 +574,7 @@ export class KoLClient {
 
     // Will only match on a combat macro, not a skill
     const match = apiResponse.match(
-      /<option selected="selected" value="(\d+)">([^<]*?) \(Combat Macro\)<\/option>/
+      /<option selected="selected" value="(\d+)">([^<]*?) \(Combat Macro\)<\/option>/,
     );
 
     if (!match) {
@@ -586,11 +589,11 @@ export class KoLClient {
 
   async searchMall(itemName: string): Promise<MallResult[]> {
     const apiResponse = (await this.visitUrl(
-      `mall.php?justitems=0&pudnuggler="${encodeURI(itemName)}"`
+      `mall.php?justitems=0&pudnuggler="${encodeURI(itemName)}"`,
     )) as string;
 
     const matches = apiResponse.matchAll(
-      /href="mallstore\.php\?whichstore=(\d+)&searchitem=(\d+)&searchprice=(\d+)"><b>.+?"small stock">([\d,]+)<\/td>.*?<td class="small">(?:(\d+)&nbsp;\/&nbsp;day&nbsp;&nbsp;&nbsp;<\/td>)?/g
+      /href="mallstore\.php\?whichstore=(\d+)&searchitem=(\d+)&searchprice=(\d+)"><b>.+?"small stock">([\d,]+)<\/td>.*?<td class="small">(?:(\d+)&nbsp;\/&nbsp;day&nbsp;&nbsp;&nbsp;<\/td>)?/g,
     );
 
     let results: MallResult[] = [];
@@ -625,19 +628,19 @@ export class KoLClient {
     itemId = mallResult.itemId + itemId;
 
     await this.visitUrl(
-      `mallstore.php?buying=1&quantity=${amount}&whichitem=${itemId}&ajax=1&pwd=${this._pwd}&whichstore=${mallResult.storeId}`
+      `mallstore.php?buying=1&quantity=${amount}&whichitem=${itemId}&ajax=1&pwd=${this._pwd}&whichstore=${mallResult.storeId}`,
     );
   }
 
   async buyFromNPC(shopName: string, row: number, amount: number): Promise<void> {
     await this.visitUrl(
-      `shop.php?whichshop=${shopName}&action=buyitem&quantity=${amount}&whichrow=${row}&pwd=${this._pwd}`
+      `shop.php?whichshop=${shopName}&action=buyitem&quantity=${amount}&whichrow=${row}&pwd=${this._pwd}`,
     );
   }
 
   async multiUse(item: number, amount: number): Promise<void> {
     await this.visitUrl(
-      `multiuse.php?whichitem=${item}&action=useitem&ajax=1&quantity=${amount}&pwd=${this._pwd}`
+      `multiuse.php?whichitem=${item}&action=useitem&ajax=1&quantity=${amount}&pwd=${this._pwd}`,
     );
   }
 
@@ -666,7 +669,7 @@ export class KoLClient {
 
     let editable = true;
     let match = response.match(
-      /<textarea maxlength=5000 name=whiteboard rows=15 cols=60>(.*?)<\/textarea><br>/s
+      /<textarea maxlength=5000 name=whiteboard rows=15 cols=60>(.*?)<\/textarea><br>/s,
     );
     let text: string = "";
 

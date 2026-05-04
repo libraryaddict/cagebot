@@ -99,7 +99,7 @@ If you need to tiebreak equipment, +noncombat rate is nice too.
 If the account is to bait for hamster runs, please ensure that the account
 has CLEESH, and the CAGEBOT macro reads "CLEESH;runaway;repeat". Please
 purchase a lucky rabbitfish fin and use it as one of your accessories.
-This removes the need for Whatsian Ionic Pliers. The cagebait should be 
+This removes the need for Whatsian Ionic Pliers. The cagebait should be
 able to not get hit by the sewer monsters prior to casting CLEESH.
 
 Manually stock bot with the items below for consumption.

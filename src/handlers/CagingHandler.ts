@@ -40,7 +40,7 @@ export class CagingHandler {
 
     // Find all effects that buffy can give us
     const wantBuffy: BuffySkill[] = getBuffySkills().filter(
-      (s) => status.effects.find((e) => e.id === s.effectId && e.duration > 50) == null
+      (s) => status.effects.find((e) => e.id === s.effectId && e.duration > 50) == null,
     );
 
     for (const buffySkill of wantBuffy) {
@@ -85,8 +85,9 @@ export class CagingHandler {
 
   async becomeCaged(message: ChatMessage, isHamster: boolean = false): Promise<void> {
     console.log(
-      `${message.who.name} (#${message.who.id}) requested a caging${message.apiRequest ? " in json format" : ""
-      }.`
+      `${message.who.name} (#${message.who.id}) requested a caging${
+        message.apiRequest ? " in json format" : ""
+      }.`,
     );
 
     await this._cagebot.testForThirdPartyUncaging();
@@ -101,8 +102,8 @@ export class CagingHandler {
         await this.getClient().sendPrivateMessage(
           message.who,
           `Rollover is in ${humanReadableTime(
-            timeToRollover
-          )}, I do not wish to get into a bad state. Please try again after rollover.`
+            timeToRollover,
+          )}, I do not wish to get into a bad state. Please try again after rollover.`,
         );
       }
 
@@ -117,14 +118,14 @@ export class CagingHandler {
       } else {
         await this.getClient().sendPrivateMessage(
           message.who,
-          "Please provide the name of a clan I am whitelisted in."
+          "Please provide the name of a clan I am whitelisted in.",
         );
       }
 
       return;
     }
 
-    const clanName = message.msg.split(" ").slice(1).join(' ');
+    const clanName = message.msg.split(" ").slice(1).join(" ");
     console.log(`${message.who.name} (#${message.who.id}) requested caging in clan "${clanName}"`);
 
     if (this._cagebot.isCaged()) {
@@ -140,7 +141,7 @@ export class CagingHandler {
     }
 
     const whitelists = (await this.getClient().getWhitelists()).filter((clan: KoLClan) =>
-      clan.name.toLowerCase().includes(clanName.toLowerCase())
+      clan.name.toLowerCase().includes(clanName.toLowerCase()),
     );
 
     // Sort clans by name length so that we can simply check the first clan for equality
@@ -157,7 +158,7 @@ export class CagingHandler {
           message.who,
           `I'm in multiple clans named ${clanName}: ${whitelists
             .map((c) => c.name)
-            .join(", ")}. Please be more specific.`
+            .join(", ")}. Please be more specific.`,
         );
       }
 
@@ -172,7 +173,7 @@ export class CagingHandler {
       } else {
         await this.getClient().sendPrivateMessage(
           message.who,
-          `I'm not in any clans named ${clanName}. Check your spelling, or ensure I have a whitelist.`
+          `I'm not in any clans named ${clanName}. Check your spelling, or ensure I have a whitelist.`,
         );
       }
 
@@ -187,19 +188,19 @@ export class CagingHandler {
 
     if (lastCooldown != undefined) {
       const timeToWait = Math.round(
-        (lastCooldown.date + lastCooldown.expiresAfter - Date.now()) / 1000
+        (lastCooldown.date + lastCooldown.expiresAfter - Date.now()) / 1000,
       );
       const time = humanReadableTime(timeToWait);
 
       console.log(
-        `Cage cooldown is in effect for ${targetClan.name}, aborting cage request. Cooldown expires in ${time}`
+        `Cage cooldown is in effect for ${targetClan.name}, aborting cage request. Cooldown expires in ${time}`,
       );
 
       if (message.apiRequest) {
         await sendApiResponse(message, "Error", ("clan_cage_cooldown:" + time) as any);
       } else {
         message.reply(
-          `I have been caged in ${targetClan.name} recently, a cooldown of ${time} is in effect.`
+          `I have been caged in ${targetClan.name} recently, a cooldown of ${time} is in effect.`,
         );
       }
 
@@ -214,7 +215,7 @@ export class CagingHandler {
       } else {
         await this.getClient().sendPrivateMessage(
           message.who,
-          `I tried to whitelist to ${targetClan.name}, but was unable to. Did I accidentally become a clan leader?`
+          `I tried to whitelist to ${targetClan.name}, but was unable to. Did I accidentally become a clan leader?`,
         );
       }
 
@@ -231,7 +232,7 @@ export class CagingHandler {
       } else {
         await this.getClient().sendPrivateMessage(
           message.who,
-          `I can't seem to access the sewers in ${targetClan.name}. Is Hobopolis open? Do I have the right permissions?`
+          `I can't seem to access the sewers in ${targetClan.name}. Is Hobopolis open? Do I have the right permissions?`,
         );
       }
 
@@ -249,7 +250,7 @@ export class CagingHandler {
     }
 
     console.log(
-      `Whitelisting to clan "${targetClan.name}" failed, checking if we can transfer leadership.`
+      `Whitelisting to clan "${targetClan.name}" failed, checking if we can transfer leadership.`,
     );
 
     const currentClanLeader = await this.getClient().getClanLeader(await this.getClient().myClan());
@@ -295,13 +296,13 @@ export class CagingHandler {
       apiResponses: message.apiRequest,
       autoRelease:
         autoEscapeMessage &&
-          (await this._cagebot.getClient().getClanWhiteboard()).text.includes(autoEscapeMessage)
+        (await this._cagebot.getClient().getClanWhiteboard()).text.includes(autoEscapeMessage)
           ? true
           : false,
     });
 
     const [gratesFoundOpen, valvesFoundTwisted]: [number, number] = await readGratesAndValves(
-      this.getClient()
+      this.getClient(),
     );
 
     //set up choice adventures
@@ -339,7 +340,7 @@ export class CagingHandler {
     await updateWhiteboard(this._cagebot, true);
 
     console.log(
-      `${targetClan.name} has ${gratesFoundOpen} grates already opened, ${valvesFoundTwisted} valves already twisted`
+      `${targetClan.name} has ${gratesFoundOpen} grates already opened, ${valvesFoundTwisted} valves already twisted`,
     );
 
     if (message.apiRequest) {
@@ -347,7 +348,7 @@ export class CagingHandler {
     } else {
       await this.getClient().sendPrivateMessage(
         message.who,
-        `Attempting to get caged in ${targetClan.name}.`
+        `Attempting to get caged in ${targetClan.name}.`,
       );
     }
 
@@ -418,7 +419,7 @@ export class CagingHandler {
 
           if (failedToMaintain) {
             console.log(
-              "We failed to maintain our diet while adventuring in the sewers, will not attempt to maintain again."
+              "We failed to maintain our diet while adventuring in the sewers, will not attempt to maintain again.",
             );
           }
         }
@@ -489,11 +490,11 @@ export class CagingHandler {
         if (
           option == 3 &&
           !/You stare at it for 4 minutes and 33 seconds before getting bored and climbing back out of the sewer/.test(
-            cagePage
+            cagePage,
           )
         ) {
           console.log(
-            `Someone is already in the C.H.U.M. Cage! As we can't be caged, performing an early exit.`
+            `Someone is already in the C.H.U.M. Cage! As we can't be caged, performing an early exit.`,
           );
           errorReason = `Sewer cage is already occupied, cannot be caged.`;
           // Set the delay incase this was intentional
@@ -514,7 +515,7 @@ export class CagingHandler {
         break;
       } else if (
         /You've already found your way through these sewers, and you don't feel like spending any more time down there than you absolutely have to./.test(
-          adventureResponse
+          adventureResponse,
         )
       ) {
         errorReason = `Passed through sewers and can no longer adventure there.`;
@@ -562,38 +563,38 @@ export class CagingHandler {
 
       if (currentAdventures - estimatedTurnsSpent <= 11) {
         console.log(
-          `Ran out of adventures attempting to get caged in clan ${targetClan.name}. Aborting.`
+          `Ran out of adventures attempting to get caged in clan ${targetClan.name}. Aborting.`,
         );
 
         // API doesn't send a message here, but sends it later
         if (!message.apiRequest) {
           await this.getClient().sendPrivateMessage(
             message.who,
-            `I ran out of adventures trying to get caged in ${targetClan.name}.`
+            `I ran out of adventures trying to get caged in ${targetClan.name}.`,
           );
         }
       } else if (errorReason) {
         console.log(
-          `Experienced an error while trying to be caged in clan ${targetClan.name}. ${errorReason}`
+          `Experienced an error while trying to be caged in clan ${targetClan.name}. ${errorReason}`,
         );
 
         // API doesn't send a message here, but sends it later
         if (!message.apiRequest) {
           await this.getClient().sendPrivateMessage(
             message.who,
-            `Failed to be caged in ${targetClan.name}, ${errorReason}`
+            `Failed to be caged in ${targetClan.name}, ${errorReason}`,
           );
         }
       } else {
         console.log(
-          `Unexpected error occurred attempting to get caged in clan ${targetClan.name}. Aborting.`
+          `Unexpected error occurred attempting to get caged in clan ${targetClan.name}. Aborting.`,
         );
 
         // API doesn't send a message here, but sends it later
         if (!message.apiRequest) {
           await this.getClient().sendPrivateMessage(
             message.who,
-            `Something unspecified went wrong while I was trying to get caged in ${targetClan.name}. Good luck.`
+            `Something unspecified went wrong while I was trying to get caged in ${targetClan.name}. Good luck.`,
           );
         }
       }
@@ -606,15 +607,16 @@ export class CagingHandler {
 
     if (estimatedTurnsSpent + totalTurnsSpent != spentAdvs) {
       console.log(
-        `We estimated ${estimatedTurnsSpent} + ${totalTurnsSpent} turns spent, ${spentAdvs} turns were actually spent.`
+        `We estimated ${estimatedTurnsSpent} + ${totalTurnsSpent} turns spent, ${spentAdvs} turns were actually spent.`,
       );
     } else {
       console.log(`We spent ${spentAdvs} turns in the process, we have ${endAdvs} turns remaining`);
     }
 
     console.log(
-      `The clan has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${valvesTwisted + valvesFoundTwisted
-      } / 20 valves twisted.`
+      `The clan has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${
+        valvesTwisted + valvesFoundTwisted
+      } / 20 valves twisted.`,
     );
 
     if (message.apiRequest) {
@@ -634,16 +636,19 @@ export class CagingHandler {
     } else {
       await this.getClient().sendPrivateMessage(
         message.who,
-        `I opened ${gratesOpened} grate${gratesOpened === 1 ? "" : "s"
-        } and turned ${valvesTwisted} valve${valvesTwisted === 1 ? "" : "s"} on the way,${timesChewedOut > 0 ? ` caged yet escaped ${timesChewedOut} times,` : ``
-        } and spent ${spentAdvs} adventure${spentAdvs === 1 ? "" : "s"} (${endAdvs} remaining).`
+        `I opened ${gratesOpened} grate${
+          gratesOpened === 1 ? "" : "s"
+        } and turned ${valvesTwisted} valve${valvesTwisted === 1 ? "" : "s"} on the way,${
+          timesChewedOut > 0 ? ` caged yet escaped ${timesChewedOut} times,` : ``
+        } and spent ${spentAdvs} adventure${spentAdvs === 1 ? "" : "s"} (${endAdvs} remaining).`,
       );
 
       if (gratesOpened > 0 || valvesTwisted > 0) {
         await this.getClient().sendPrivateMessage(
           message.who,
-          `Hobopolis has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${valvesTwisted + valvesFoundTwisted
-          } / 20 valves twisted.`
+          `Hobopolis has ${gratesOpened + gratesFoundOpen} / 20 grates open, ${
+            valvesTwisted + valvesFoundTwisted
+          } / 20 valves twisted.`,
         );
       }
     }

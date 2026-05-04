@@ -26,7 +26,6 @@ import {
   getSecondsElapsedInDay,
 } from "./utils/Utils";
 import { readFileSync } from "fs";
-import { report } from "process";
 
 const mutex = new Mutex();
 
@@ -107,7 +106,7 @@ export class CageBot {
       this.getDietHandler().getMaxDrunk(),
       this.getDietHandler().getMaxFull(),
       this._knownSkills,
-      this.getCageTask()
+      this.getCageTask(),
     );
   }
 
@@ -136,7 +135,7 @@ export class CageBot {
 
     this._cageTask = settings.cageTask;
     this._knownSkills = getMinusCombatSkills().filter((skill) =>
-      settings.knownSkills.includes(skill.skillId)
+      settings.knownSkills.includes(skill.skillId),
     );
 
     console.log("Loaded previous state from saved file");
@@ -160,14 +159,17 @@ export class CageBot {
         console.log(
           `We know the skill${this._knownSkills.length != 1 ? "s" : ""}: ${this._knownSkills
             .map((s) => `'${s.name}'`)
-            .join(", ")} and will attempt to maintain them.`
+            .join(", ")} and will attempt to maintain them.`,
         );
       }
 
       console.log("Initial setup complete. Polling messages.");
 
       setInterval(async () => {
-        if (getSecondsToRollover() < 5 || getSecondsElapsedInDay() < 4 * 60) { this._client.setLoggedOut(); return; };
+        if (getSecondsToRollover() < 5 || getSecondsElapsedInDay() < 4 * 60) {
+          this._client.setLoggedOut();
+          return;
+        }
 
         if (!this._client.isLoggedIn()) {
           const login = await this._client.logIn();
@@ -182,14 +184,13 @@ export class CageBot {
         if (!this.isCaged()) {
           await this._diet.maintainAdventures();
         }
-
       }, 3000);
       this.processMessage();
     });
   }
 
   async testForThirdPartyUncaging(): Promise<void> {
-    if (!(this._client.isLoggedIn())) return;
+    if (!this._client.isLoggedIn()) return;
 
     this._lastCheckForThirdPartyUncaging = Date.now();
     let page = await this._client.visitUrl("place.php");
@@ -262,7 +263,7 @@ export class CageBot {
         await this.getClient().setAutoAttackMacro(macro);
       } else {
         console.log(
-          "AutoAttack Macro is not CAGEBOT, will leave untouched but this may be an error."
+          "AutoAttack Macro is not CAGEBOT, will leave untouched but this may be an error.",
         );
       }
     }
@@ -293,7 +294,7 @@ export class CageBot {
     if (!this.isCaged()) {
       const knownSkills = await this._client.getSkills();
       this._knownSkills = getMinusCombatSkills().filter((skill) =>
-        knownSkills.includes(skill.skillId)
+        knownSkills.includes(skill.skillId),
       );
 
       await this._diet.maintainAdventures();
@@ -314,7 +315,7 @@ export class CageBot {
         await sendApiResponse(message, "Busy", "already_in_use");
       } else {
         await message.reply(
-          "Sorry, I am currently busy processing a request. Please wait, or send a status request."
+          "Sorry, I am currently busy processing a request. Please wait, or send a status request.",
         );
       }
 
@@ -352,8 +353,8 @@ export class CageBot {
         this._client.useChatMacro(
           `/w ${rescued[1].replaceAll(
             " ",
-            "_"
-          )} Thank you for rescuing me! You didn't have to though!`
+            "_",
+          )} Thank you for rescuing me! You didn't have to though!`,
         );
       }
 
@@ -377,18 +378,18 @@ export class CageBot {
         }
 
         console.log(
-          `A minute has passed, asking ${task.requester.name} (#${task.requester.id}) if they'd like me to escape.`
+          `A minute has passed, asking ${task.requester.name} (#${task.requester.id}) if they'd like me to escape.`,
         );
 
         if (task.apiResponses) {
           this.getClient().sendPrivateMessage(
             task.requester,
-            createApiResponse("Notification", "remember_to_unbait")
+            createApiResponse("Notification", "remember_to_unbait"),
           );
         } else {
           this._client.sendPrivateMessage(
             task.requester,
-            `You've made it through the sewers! If cagebait is no longer required, whisper me "escape".`
+            `You've made it through the sewers! If cagebait is no longer required, whisper me "escape".`,
           );
         }
       }, 60000);
@@ -397,7 +398,7 @@ export class CageBot {
     }
 
     console.log(
-      `${task.requester.name} (#${task.requester.id}) has made it through the sewers. Requesting escape as per whiteboard.`
+      `${task.requester.name} (#${task.requester.id}) has made it through the sewers. Requesting escape as per whiteboard.`,
     );
 
     // Requester made it through the sewers. Add to private messages.
@@ -421,8 +422,9 @@ export class CageBot {
         await this.processHobopolisMessage(message);
       } else {
         console.log(
-          `Processing whisper${message.apiRequest ? ".api" : ""} from ${message.who.name} (#${message.who.id
-          })`
+          `Processing whisper${message.apiRequest ? ".api" : ""} from ${message.who.name} (#${
+            message.who.id
+          })`,
         );
         const processedMsg = message.msg.toLowerCase();
 
@@ -469,23 +471,24 @@ export class CageBot {
     console.log(`${message.who.name} (#${message.who.id}) requested help.`);
 
     await message.reply(
-      `Hi! I am ${this._client.getMe()?.name} (#${this._client.getMe()?.id
-      }), and I am running Phillammon's Cagebot script.`
+      `Hi! I am ${this._client.getMe()?.name} (#${
+        this._client.getMe()?.id
+      }), and I am running Phillammon's Cagebot script.`,
     );
 
     await message.reply(`My commands:`);
     await message.reply(`- status: Get my current status`);
     await message.reply(
-      `- cage [clanname]: Try to get caged in the specified clan's hobopolis instance`
+      `- cage [clanname]: Try to get caged in the specified clan's hobopolis instance`,
     );
     await message.reply(
-      `- hamster [clanname]: Using ASS hamster standards, try to get caged in the specified clan's hobopolis instance`
+      `- hamster [clanname]: Using ASS hamster standards, try to get caged in the specified clan's hobopolis instance`,
     );
     await message.reply(
-      `- escape: If you're the person who requested I got caged, chews out of the cage I'm in`
+      `- escape: If you're the person who requested I got caged, chews out of the cage I'm in`,
     );
     await message.reply(
-      `- release: Chew out of the cage, REGARDLESS of who is responsible for the caging. Only usable if I've been caged for an hour or something's gone wrong.`
+      `- release: Chew out of the cage, REGARDLESS of who is responsible for the caging. Only usable if I've been caged for an hour or something's gone wrong.`,
     );
     await message.reply(`- help: Displays this message.`);
   }
@@ -513,34 +516,34 @@ export class CageBot {
 
         await message.reply(
           `I have been caged in ${this._cageTask.clan.name} for ${humanReadableTime(
-            cageSecs
-          )}, at the request of ${this._cageTask.requester.name} (#${this._cageTask.requester.id}).`
+            cageSecs,
+          )}, at the request of ${this._cageTask.requester.name} (#${this._cageTask.requester.id}).`,
         );
 
         if (this.releaseable()) {
           await message.reply(
-            `As I've been caged for at least an hour, anyone can release me by whispering "release" to me. I have ${status.adventures} adventures left.`
+            `As I've been caged for at least an hour, anyone can release me by whispering "release" to me. I have ${status.adventures} adventures left.`,
           );
         } else {
           await message.reply(
             `They can release me at any time by whispering "escape" to me, or anyone can release me by whispering "release" to me in ${humanReadableTime(
-              3600 - cageSecs
-            )}. I have ${status.adventures} adventures left.`
+              3600 - cageSecs,
+            )}. I have ${status.adventures} adventures left.`,
           );
         }
       } else {
         await message.reply(
-          `I am caged, but I don't know where, when, or for how long. Anyone can release me by whispering "release" to me. I have ${status.adventures} adventures left.`
+          `I am caged, but I don't know where, when, or for how long. Anyone can release me by whispering "release" to me. I have ${status.adventures} adventures left.`,
         );
       }
     } else {
       if (this._cageTask) {
         await message.reply(
-          `I am currently processing a cage request and have ${status.adventures} adventures left.`
+          `I am currently processing a cage request and have ${status.adventures} adventures left.`,
         );
       } else {
         await message.reply(
-          `I am not presently caged and have ${status.adventures} adventures left.`
+          `I am not presently caged and have ${status.adventures} adventures left.`,
         );
       }
     }
@@ -550,7 +553,7 @@ export class CageBot {
     //always send info on how full the bot is.
     //todo: assumes max valves. Should check for actual
     await message.reply(
-      `My current fullness is ${status.full}/${reported.stomach} and drunkeness is ${status.drunk}/${reported.liver}.`
+      `My current fullness is ${status.full}/${reported.stomach} and drunkeness is ${status.drunk}/${reported.liver}.`,
     );
   }
 
@@ -593,7 +596,7 @@ export class CageBot {
     console.log(`${message.who.name} (#${message.who.id}) made an incomprehensible request.`);
 
     await message.reply(
-      `I'm afraid I didn't understand that. Whisper me "help" for details of how to use me.`
+      `I'm afraid I didn't understand that. Whisper me "help" for details of how to use me.`,
     );
   }
 
