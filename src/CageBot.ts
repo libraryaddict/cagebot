@@ -243,6 +243,13 @@ export class CageBot {
       const theirMacro = await this.getClient().getCombatMacro(macro);
 
       if (theirMacro !== macroText) {
+        console.log("!!! For hamster mode to work properly !!!");
+        console.log("!!! this account MUST have CLEESH and !!!");
+        console.log("!!! the macro MUST instead read       !!!");
+        console.log('!!! "CLEESH;runaway;repeat;". Please  !!!');
+        console.log("!!! ensure the account won't die to   !!!");
+        console.log("!!! the sewer monsters before CLEESH. !!!");
+        console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         console.log("Custom CAGEBOT macro detected! This is probably fine.");
       }
     }
@@ -421,6 +428,8 @@ export class CageBot {
 
         if (processedMsg.startsWith("cage")) {
           await this.runBlockingRequest(message, () => this._cageHandler.becomeCaged(message));
+        } else if (processedMsg.startsWith("hamster")) {
+          await this.runBlockingRequest(message, () => this._cageHandler.becomeCaged(message));
         } else if (processedMsg.startsWith("release")) {
           await this.runBlockingRequest(message, () => this._uncageHandler.releaseCage(message));
         } else if (processedMsg.startsWith("escape")) {
@@ -468,6 +477,9 @@ export class CageBot {
     await message.reply(`- status: Get my current status`);
     await message.reply(
       `- cage [clanname]: Try to get caged in the specified clan's hobopolis instance`
+    );
+    await message.reply(
+      `- hamster [clanname]: Using ASS hamster standards, try to get caged in the specified clan's hobopolis instance`
     );
     await message.reply(
       `- escape: If you're the person who requested I got caged, chews out of the cage I'm in`

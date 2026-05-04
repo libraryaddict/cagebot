@@ -83,7 +83,7 @@ export class CagingHandler {
     return false;
   }
 
-  async becomeCaged(message: ChatMessage): Promise<void> {
+  async becomeCaged(message: ChatMessage, isHamster: boolean = false): Promise<void> {
     console.log(
       `${message.who.name} (#${message.who.id}) requested a caging${message.apiRequest ? " in json format" : ""
       }.`
@@ -124,7 +124,7 @@ export class CagingHandler {
       return;
     }
 
-    const clanName = message.msg.slice(message.msg.indexOf(" ") + 1);
+    const clanName = message.msg.split(" ").slice(1).join(' ');
     console.log(`${message.who.name} (#${message.who.id}) requested caging in clan "${clanName}"`);
 
     if (this._cagebot.isCaged()) {
@@ -238,7 +238,7 @@ export class CagingHandler {
       return;
     }
 
-    await this.attemptCage(message, targetClan);
+    await this.attemptCage(message, targetClan, isHamster);
   }
 
   async attemptClanSwitch(targetClan: KoLClan): Promise<boolean> {
@@ -285,7 +285,7 @@ export class CagingHandler {
     return (await this.getClient().myClan()) === targetClan.id;
   }
 
-  async attemptCage(message: ChatMessage, targetClan: KoLClan): Promise<void> {
+  async attemptCage(message: ChatMessage, targetClan: KoLClan, isHamster: boolean): Promise<void> {
     const autoEscapeMessage = this.getSettings().whiteboardMessageAutoEscape;
 
     this._cagebot.setCagedStatus(false, {
@@ -300,6 +300,30 @@ export class CagingHandler {
           : false,
     });
 
+    const [gratesFoundOpen, valvesFoundTwisted]: [number, number] = await readGratesAndValves(
+      this.getClient()
+    );
+
+    //set up choice adventures
+    let skipRescues = false;
+    let grateChoice = 3;
+    let valveChoice = 3;
+
+    //these many grates are to be opened in hamster mode
+    //TODO: figure out a way to read this from the chat message?
+    const hamsterGrates = 11;
+
+    if (isHamster) {
+      //skip all non-grate noncombats by turning them to (CLEESH) combats
+      valveChoice = 2;
+      // If enough grates are open, do not open more
+      if (gratesFoundOpen >= hamsterGrates) {
+        grateChoice = 2;
+      }
+      // Do not burn an adventure attempting to rescue someone
+      skipRescues = true;
+    }
+
     await this.getClient().useChatMacro("/listenon Hobopolis");
     let status = await this.getClient().getStatus();
     let maintainEffects: boolean = await this.castAndMaintainEffects(status);
@@ -307,14 +331,10 @@ export class CagingHandler {
     let gratesOpened = 0;
     let valvesTwisted = 0;
     let timesChewedOut = 0;
-    const [gratesFoundOpen, valvesFoundTwisted]: [number, number] = await readGratesAndValves(
-      this.getClient()
-    );
     let currentAdventures = status.adventures;
     let estimatedTurnsSpent: number = 0;
     let totalTurnsSpent: number = 0;
     let failedToMaintain = false;
-    let triedToRescue: boolean = false;
     let errorReason: string | null = null;
     await updateWhiteboard(this._cagebot, true);
 
@@ -424,7 +444,7 @@ export class CagingHandler {
       } else if (/Disgustin\' Junction/.test(adventureResponse)) {
         const choiceResponse = await this.getClient().visitUrl("choice.php", {
           whichchoice: 198,
-          option: 3,
+          option: grateChoice,
         });
 
         if (/too tired to explore the tunnel on the other side/i.test(choiceResponse)) {
@@ -433,10 +453,16 @@ export class CagingHandler {
         } else {
           estimatedTurnsSpent--; // Free turn
         }
+
+        //but if enough grates happen, then it's time to stop opening them
+        if (isHamster && gratesOpened >= hamsterGrates) {
+          grateChoice = 2;
+          console.log(`Hit hamster grate total: ${hamsterGrates}.`);
+        }
       } else if (/Somewhat Higher and Mostly Dry/.test(adventureResponse)) {
         const choiceResponse = await this.getClient().visitUrl("choice.php", {
           whichchoice: 197,
-          option: 3,
+          option: valveChoice,
         });
 
         if (/as the water level in the sewer lowers by a couple of inches/i.test(choiceResponse)) {
@@ -447,12 +473,13 @@ export class CagingHandler {
         }
       } else if (/The Former or the Ladder/.test(adventureResponse)) {
         // Funny enough, this is not a free turn. But we're going to try once to release any trapped clanmates.
+        // If it's a hamster run, then we don't check as it costs an adventure.
 
         // 2 = Fight a C. H. U. M.
         // 3 = Rescue
-        const option = triedToRescue ? 2 : 3;
+        const option = skipRescues ? 2 : 3;
         // Always set this to true so follow up encounters to this NC will result in a fight.
-        triedToRescue = true;
+        skipRescues = true;
 
         const cagePage = await this.getClient().visitUrl("choice.php", {
           whichchoice: 199,
